@@ -35,7 +35,7 @@ function main(){
     config = {}
 
   //
-  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureAddress', 'setuid'].forEach(function(key){
+  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureAddress', 'setuid', 'setgid'].forEach(function(key){
     if(app[key])
       config[key] = app[key]
   })

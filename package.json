@@ -1,6 +1,6 @@
 {
   "name": "broxy",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "Simple bouncy-based proxy script, to make it easy to set up a quick HTTP(s) proxy from the command line",
   "main": "index.js",
   "dependencies": {
