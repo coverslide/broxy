@@ -22,6 +22,7 @@ function main(){
     .option('-s, --secure-port <port>', 'port to listen to secure traffic from')
     .option('-A, --secure-address <address>', 'port to listen to secure traffic from')
     .option('-u, --setuid <uid>', 'uid to drop permissions to')
+    .option('-g, --setgid <gid>', 'gid to drop permissions to')
     .parse(process.argv)  
 
   var configFile = app.args[0] || 'broxy.json'
@@ -55,6 +56,9 @@ function main(){
 
   proxies.proxy && proxies.proxy.listen(config.port, config.address)
   proxies.secureProxy && proxies.secureProxy.listen(config.securePort, config.secureAddress)
+
+  if(config.setgid)
+    process.setgid(config.setgid)
 
   if(config.setuid)
     process.setuid(config.setuid)
@@ -97,5 +101,6 @@ function broxy(config){
   return server
 }
 
-if(require.main == module)
+if(require.main == module){
   main()
+}
