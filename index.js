@@ -34,7 +34,6 @@ function main(){
   else
     config = {}
 
-  //
   ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureAddress', 'setuid', 'setgid'].forEach(function(key){
     if(app[key])
       config[key] = app[key]
@@ -73,12 +72,14 @@ function init(config){
       , cert: config.cert
       , forward: config.forward
       , host: config.host
+      , domains: config.domains
     })
   }
 
   var proxy = broxy({
     forward: config.forward
     , host: config.host
+    , domains: config.domains
   })
 
   return {proxy: proxy, secureProxy: secureProxy}
@@ -87,8 +88,34 @@ function init(config){
 //mostly useless on its own
 function broxy(config){
 
-  function onrequest(req, bounce){
-    bounce(config.forward, config.host)
+  var onrequest = config.domains
+  ? function onrequest(req, res, bounce){
+    var route = config.domains[req.headers.host]
+    if(route){
+      if(Array.isArray(route)){
+        var lastroute = route.pop()
+        route.unshift(lastroute)
+        route = lastroute
+      }
+      var b = bounce(route.socket || route.port || route, route.host)
+      b.on('error', function(e){
+        res.statusCode = 503
+        res.setHeader('content-type', 'text/html')
+        res.end('<h1>503 Service Unavailable</h1>')
+      })
+    } else {
+      res.statusCode = 502
+      res.setHeader('content-type', 'text/html')
+      res.end('<h1>502 Bad Gateway</h1>')
+    }
+  }
+  : function onrequest(req, res, bounce){
+    var b = bounce(config.forward, config.host)
+    b.on('error', function(e){
+      res.statusCode = 503
+      res.setHeader('content-type', 'text/html')
+      res.end('<h1>502 Service Unavailable</h1>')
+    })
   }
 
   if(config.key && config.cert){
