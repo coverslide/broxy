@@ -91,6 +91,7 @@ function broxy(config){
   var onrequest = config.domains
   ? function onrequest(req, res, bounce){
     var route = config.domains[req.headers.host]
+    if(!route && config.domains['*']) route = config.domains['*']
     if(route){
       if(Array.isArray(route)){
         var lastroute = route.pop()
