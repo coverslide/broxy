@@ -16,11 +16,11 @@ function main(){
     .option('-k, --key-file <filename>', 'key file')
     .option('-c, --cert-file <filename>', 'cert file')
     .option('-f, --forward <port>', 'port to forward to')
-    .option('-h, --host <hostname>', 'hostname to forward to')
-    .option('-p, --port <port>', 'port to listen on')
-    .option('-a, --address <address>', 'ip address to listen on')
-    .option('-s, --secure-port <port>', 'port to listen to secure traffic from')
-    .option('-A, --secure-address <address>', 'port to listen to secure traffic from')
+    .option('-h, --address <address>', 'address to forward to')
+    .option('-p, --port <port>', 'port to listen on (Defaults to 80)')
+    .option('-a, --host <host>', 'host to listen on (Defaults to 0.0.0.0)')
+    .option('-s, --secure-port <port>', 'port to listen to secure traffic from (Defaults to 443)')
+    .option('-A, --secure-host <host>', 'port to listen to secure traffic from (Defaults to 0.0.0.0)')
     .option('-u, --setuid <uid>', 'uid to drop permissions to')
     .option('-g, --setgid <gid>', 'gid to drop permissions to')
     .parse(process.argv)  
@@ -34,7 +34,7 @@ function main(){
   else
     config = {}
 
-  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureAddress', 'setuid', 'setgid'].forEach(function(key){
+  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureHost', 'setuid', 'setgid'].forEach(function(key){
     if(app[key])
       config[key] = app[key]
   })
@@ -53,8 +53,8 @@ function main(){
 
   var proxies = init(config)
 
-  proxies.proxy && proxies.proxy.listen(config.port, config.address)
-  proxies.secureProxy && proxies.secureProxy.listen(config.securePort, config.secureAddress)
+  proxies.proxy && proxies.proxy.listen(config.port, config.host)
+  proxies.secureProxy && proxies.secureProxy.listen(config.securePort, config.secureHost)
 
   if(config.setgid)
     process.setgid(config.setgid)
@@ -71,14 +71,14 @@ function init(config){
       key: config.key
       , cert: config.cert
       , forward: config.forward
-      , host: config.host
+      , address: config.address
       , domains: config.domains
     })
   }
 
   var proxy = broxy({
     forward: config.forward
-    , host: config.host
+    , address: config.address
     , domains: config.domains
   })
 
