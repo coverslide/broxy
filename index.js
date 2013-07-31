@@ -16,13 +16,15 @@ function main(){
     .option('-k, --key-file <filename>', 'key file')
     .option('-c, --cert-file <filename>', 'cert file')
     .option('-f, --forward <port>', 'port to forward to')
-    .option('-h, --address <address>', 'address to forward to')
+    .option('-a, --address <address>', 'address to forward to')
     .option('-p, --port <port>', 'port to listen on (Defaults to 80)')
-    .option('-a, --host <host>', 'host to listen on (Defaults to 0.0.0.0)')
-    .option('-s, --secure-port <port>', 'port to listen to secure traffic from (Defaults to 443)')
-    .option('-A, --secure-host <host>', 'port to listen to secure traffic from (Defaults to 0.0.0.0)')
+    .option('-h, --host <host>', 'host to listen on (Defaults to 0.0.0.0)')
+    .option('-P, --secure-port <port>', 'port to listen to secure traffic from (Defaults to 443)')
+    .option('-H, --secure-host <host>', 'port to listen to secure traffic from (Defaults to 0.0.0.0)')
     .option('-u, --setuid <uid>', 'uid to drop permissions to')
     .option('-g, --setgid <gid>', 'gid to drop permissions to')
+    .option('-l, --log-file [file]', 'file to log to')
+    .option('-L, --log-format <format>', 'logging format')
     .parse(process.argv)  
 
   var configFile = app.args[0] || 'broxy.json'
@@ -34,7 +36,7 @@ function main(){
   else
     config = {}
 
-  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureHost', 'setuid', 'setgid'].forEach(function(key){
+  ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureHost', 'setuid', 'setgid', 'logFile', 'logFormat'].forEach(function(key){
     if(app[key])
       config[key] = app[key]
   })
