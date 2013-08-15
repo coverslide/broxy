@@ -77,6 +77,8 @@ function init(config){
       , forward: config.forward
       , address: config.address
       , domains: config.domains
+      , logFile: config.logFile
+      , logFormat: config.logFormat
     })
   }
 
@@ -84,6 +86,8 @@ function init(config){
     forward: config.forward
     , address: config.address
     , domains: config.domains
+    , logFile: config.logFile
+    , logFormat: config.logFormat
   })
 
   return {proxy: proxy, secureProxy: secureProxy}
@@ -101,7 +105,7 @@ function broxy(config){
       return [new RegExp('^' + domain.replace(/\*/g,'[^.]+') + '$'), config.domains[domain]]
     })
     onrequest = function onrequest(req, res, bounce){
-      var host = req.headers.host
+      var host = req.headers.host.split(':')[0]
       var route = cache[host]
       if(!route){
         route = config.domains[req.headers.host]
@@ -154,7 +158,34 @@ function broxy(config){
     var server = bouncy(onrequest)
   }
 
+  if(config.logFile){
+    var logFile = config.logFile
+    if(logFile === true){
+      //if the value of logfile is simply true, use stdout instead
+      var logStream = fs.createWriteStream('', {flags:'a', fd: process.stdout.fd})
+    } else {
+      var logStream = fs.createWriteStream(logFile, {flags:'a'})
+    }
+    var logFormat = config.logFormat || '%d\t%p\t%i\t%h\t%u\t%a'
+    var log = function(req){
+      logStream.write(parseLogFormat(logFormat, !!config.key, req) + '\n')
+    }
+    server.on('request', log)
+  }
+
   return server
+}
+
+function parseLogFormat(fmt, secure, req){
+  var str = fmt
+  //TODO: look into how apache does its logs
+  str = str.replace(/%d/g, new Date())
+  str = str.replace(/%p/g, secure ? 'HTTPS' : 'HTTP')
+  str = str.replace(/%i/g, req.socket.remoteAddress)
+  str = str.replace(/%h/g, req.headers.host)
+  str = str.replace(/%u/g, req.url)
+  str = str.replace(/%a/g, req.headers['user-agent'])
+  return str
 }
 
 if(require.main == module){
