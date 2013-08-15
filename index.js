@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 
+'use strict'
+
 var fs = require('fs')
 var path = require('path')
 
@@ -32,16 +34,16 @@ function main(){
   var configPath = path.resolve(configFile)
 
   if(fs.existsSync(configPath))
-    config = require(configPath)
+    var config = require(configPath)
   else
-    config = {}
+    var config = {}
 
   ;['keyFile', 'certFile', 'key', 'cert', 'forward', 'port', 'address', 'securePort', 'secureHost', 'setuid', 'setgid', 'logFile', 'logFormat'].forEach(function(key){
     if(app[key])
       config[key] = app[key]
   })
 
-  configDir = path.dirname(configPath)
+  var configDir = path.dirname(configPath)
 
   if(!config.port)
     config.port = 80
