@@ -89,36 +89,60 @@ function init(config){
 
 //mostly useless on its own
 function broxy(config){
+  var onrequest = null
+  if(config.domains){
 
-  var onrequest = config.domains
-  ? function onrequest(req, res, bounce){
-    var route = config.domains[req.headers.host]
-    if(!route && config.domains['*']) route = config.domains['*']
-    if(route){
-      if(Array.isArray(route)){
-        var lastroute = route.pop()
-        route.unshift(lastroute)
-        route = lastroute
+    var cache = {}
+    var regDomains = Object.keys(config.domains).filter(function(domain){
+      return /\*/.test(domain)
+    }).map(function(domain){
+      return [new RegExp('^' + domain.replace(/\*/g,'[^.]+') + '$'), config.domains[domain]]
+    })
+    onrequest = function onrequest(req, res, bounce){
+      var host = req.headers.host
+      var route = cache[host]
+      if(!route){
+        route = config.domains[req.headers.host]
+        if(!route){
+          regDomains.some(function(reg){
+            if(reg[0].test(host)){
+              route = reg[1]
+              return true
+            }
+          })
+          if(!route && config.domains['*']){
+            route = config.domains['*']
+          }
+        }
       }
-      var b = bounce(route.socket || route.port || route, route.host)
+      if(route){
+        cache[host] = route
+        if(Array.isArray(route)){
+          var lastroute = route.pop()
+          route.unshift(lastroute)
+          route = lastroute
+        }
+        var b = bounce(route.socket || route.port || route, route.host)
+        b.on('error', function(e){
+          res.statusCode = 503
+          res.setHeader('content-type', 'text/html')
+          res.end('<h1>503 Service Unavailable</h1>')
+        })
+      } else {
+        res.statusCode = 502
+        res.setHeader('content-type', 'text/html')
+        res.end('<h1>502 Bad Gateway</h1>')
+      }
+    }
+  } else {
+    onrequest = function onrequest(req, res, bounce){
+      var b = bounce(config.forward, config.host)
       b.on('error', function(e){
         res.statusCode = 503
         res.setHeader('content-type', 'text/html')
-        res.end('<h1>503 Service Unavailable</h1>')
+        res.end('<h1>502 Service Unavailable</h1>')
       })
-    } else {
-      res.statusCode = 502
-      res.setHeader('content-type', 'text/html')
-      res.end('<h1>502 Bad Gateway</h1>')
     }
-  }
-  : function onrequest(req, res, bounce){
-    var b = bounce(config.forward, config.host)
-    b.on('error', function(e){
-      res.statusCode = 503
-      res.setHeader('content-type', 'text/html')
-      res.end('<h1>502 Service Unavailable</h1>')
-    })
   }
 
   if(config.key && config.cert){
