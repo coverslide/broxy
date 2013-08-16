@@ -104,6 +104,8 @@ function broxy(config){
     }).map(function(domain){
       return [new RegExp('^' + domain.replace(/\*/g,'[^.]+') + '$'), config.domains[domain]]
     })
+
+    //TODO: DRY this part
     var onrequest = function onrequest(req, res, proxy){
       var host = req.headers.host.split(':')[0]
       var route = resolveRoute(host)
@@ -140,23 +142,21 @@ function broxy(config){
       }
     }
   } else {
+    var fwd = {
+      host: config.address || '127.0.0.1',
+      port: config.forward
+    }
     var onrequest = function onrequest(req, res, proxy){
-      proxy.proxyRequest(req, res, {
-        host: config.address,
-        port: config.forward
-      })
+      proxy.proxyRequest(req, res, fwd)
     }
 
     var onupgrade = function onupgrade(req, socket, head){
-      server.proxy.proxyWebSocketRequest(req, socket, head, {
-        host: config.address,
-        port: config.forward
-      })
+      server.proxy.proxyWebSocketRequest(req, socket, head, fwd)
     }
   }
 
   if(config.key && config.cert){
-    var server = httpProxy.createServer({key: config.key, cert: config.cert}, onrequest)
+    var server = httpProxy.createServer({https:{key: config.key, cert: config.cert}}, onrequest)
   }
   else{
     var server = httpProxy.createServer(onrequest)
