@@ -1,7 +1,7 @@
 broxy
 =====
 
-simple bouncy based console app for launching a single proxy
+simple node based console app for launching a single proxy
 
 Installation
 ============
@@ -32,3 +32,9 @@ Usage
     -l, --log-file [file]       file to log to
     -L, --log-format <format>   logging format
 ```
+
+TODO
+====
+
+* Simple SNI handling
+* Apache-like logging

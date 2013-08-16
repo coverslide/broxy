@@ -6,7 +6,7 @@ var fs = require('fs')
 var path = require('path')
 
 var app = require('commander')
-var bouncy = require('bouncy')
+var httpProxy = require('http-proxy')
 
 module.exports = broxy
 
@@ -104,23 +104,9 @@ function broxy(config){
     }).map(function(domain){
       return [new RegExp('^' + domain.replace(/\*/g,'[^.]+') + '$'), config.domains[domain]]
     })
-    onrequest = function onrequest(req, res, bounce){
+    var onrequest = function onrequest(req, res, proxy){
       var host = req.headers.host.split(':')[0]
-      var route = cache[host]
-      if(!route){
-        route = config.domains[req.headers.host]
-        if(!route){
-          regDomains.some(function(reg){
-            if(reg[0].test(host)){
-              route = reg[1]
-              return true
-            }
-          })
-          if(!route && config.domains['*']){
-            route = config.domains['*']
-          }
-        }
-      }
+      var route = resolveRoute(host)
       if(route){
         cache[host] = route
         if(Array.isArray(route)){
@@ -128,12 +114,25 @@ function broxy(config){
           route.unshift(lastroute)
           route = lastroute
         }
-        var b = bounce(route.socket || route.port || route, route.host)
-        b.on('error', function(e){
-          res.statusCode = 503
-          res.setHeader('content-type', 'text/html')
-          res.end('<h1>503 Service Unavailable</h1>')
-        })
+        proxy.proxyRequest(req, res, createRoute(route))
+      } else {
+        res.statusCode = 502
+        res.setHeader('content-type', 'text/html')
+        res.end('<h1>502 Bad Gateway</h1>')
+      }
+    }
+
+    var onupgrade = function onupgrade(req, socket, head){
+      var host = req.headers.host.split(':')[0]
+      var route = resolveRoute(host)
+      if(route){
+        cache[host] = route
+        if(Array.isArray(route)){
+          var lastroute = route.pop()
+          route.unshift(lastroute)
+          route = lastroute
+        }
+        server.proxy.proxyWebSocketRequest(req, socket, head, createRoute(route))
       } else {
         res.statusCode = 502
         res.setHeader('content-type', 'text/html')
@@ -141,22 +140,29 @@ function broxy(config){
       }
     }
   } else {
-    onrequest = function onrequest(req, res, bounce){
-      var b = bounce(config.forward, config.host)
-      b.on('error', function(e){
-        res.statusCode = 503
-        res.setHeader('content-type', 'text/html')
-        res.end('<h1>502 Service Unavailable</h1>')
+    var onrequest = function onrequest(req, res, proxy){
+      proxy.proxyRequest(req, res, {
+        host: config.address,
+        port: config.forward
+      })
+    }
+
+    var onupgrade = function onupgrade(req, socket, head){
+      server.proxy.proxyWebSocketRequest(req, socket, head, {
+        host: config.address,
+        port: config.forward
       })
     }
   }
 
   if(config.key && config.cert){
-    var server = bouncy({key: config.key, cert: config.cert}, onrequest)
+    var server = httpProxy.createServer({key: config.key, cert: config.cert}, onrequest)
   }
   else{
-    var server = bouncy(onrequest)
+    var server = httpProxy.createServer(onrequest)
   }
+
+  server.on('upgrade', onupgrade)
 
   if(config.logFile){
     var logFile = config.logFile
@@ -166,14 +172,44 @@ function broxy(config){
     } else {
       var logStream = fs.createWriteStream(logFile, {flags:'a'})
     }
-    var logFormat = config.logFormat || '%d\t%p\t%i\t%h\t%u\t%a'
+    var logFormat = config.logFormat || '%d\t%p\t%i\t%h\t%u\t%a\t%U'
     var log = function(req){
       logStream.write(parseLogFormat(logFormat, !!config.key, req) + '\n')
     }
     server.on('request', log)
+    server.on('upgrade', log)
   }
 
   return server
+
+  function createRoute(route){
+    if(typeof route == 'string'){
+      return {socketPath: route}
+    } else if(typeof route == 'number'){
+      return {port: route, host: '127.0.0.1'}
+    } else {
+      return route
+    }
+  }
+
+  function resolveRoute(host){
+    var route = cache[host]
+    if(!route){
+      route = config.domains[host]
+      if(!route){
+        regDomains.some(function(reg){
+          if(reg[0].test(host)){
+            route = reg[1]
+            return true
+          }
+        })
+        if(!route && config.domains['*']){
+          route = config.domains['*']
+        }
+      }
+    }
+    return route
+  }
 }
 
 function parseLogFormat(fmt, secure, req){
@@ -185,6 +221,7 @@ function parseLogFormat(fmt, secure, req){
   str = str.replace(/%h/g, req.headers.host)
   str = str.replace(/%u/g, req.url)
   str = str.replace(/%a/g, req.headers['user-agent'])
+  str = str.replace(/%U/g, req.headers['upgrade'] || '')
   return str
 }
 
